@@ -39,7 +39,7 @@ Add permiter as a Claude Code hook in `~/.claude/settings.local.json` (or a proj
         "hooks": [
           {
             "type": "command",
-            "command": "/path/to/permiter run -c /path/to/config.perm"
+            "command": "permiter run -c /path/to/config.perm"
           }
         ]
       }
@@ -506,14 +506,13 @@ table input default deny {
     Edit file_path $dev_dir -> allow "Dev edits allowed"
 }
 
-table shell_scrutiny default deny {
+table shell_scrutiny default passthrough {
     command /^rm\b/ -> deny "rm is not allowed"
     command /^(sudo|su)\b/ -> deny "Privilege escalation not allowed"
     command /^(sh|bash|zsh)\b/ -> evaluate flag -c
     command /^timeout\b/ -> evaluate skip 1
     command /^(git|gh)\b/ -> allow "Version control allowed"
     command /^(mkdir|touch|cp|mv|ln)\b/ -> allow "File operations allowed"
-    -> passthrough "Not matched — defer to Claude"
 }
 ```
 
