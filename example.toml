@@ -1,0 +1,123 @@
+[global]
+entry_table = "input"
+
+[audit]
+audit_file = "/tmp/permiter-audit.json"
+audit_level = "matched"   # off | matched | all
+
+[table.input]
+default = "deny"
+
+# Safe read-only shell commands
+[[table.input.rules]]
+tool = "Bash"
+command = "^(ls|pwd|echo|cat|grep|find|which|whoami|wc|head|tail|sort|uniq|date|uname|df|du|ps|env|printenv|diff|file|stat|true|false|test|\\[)\\b"
+action = "allow"
+reason = "Safe read-only commands"
+
+# Forward all other Bash commands to shell_scrutiny
+[[table.input.rules]]
+tool = "Bash"
+action = "forward"
+target = "shell_scrutiny"
+
+# Allow reading files in the dev directory
+[[table.input.rules]]
+tool = "Read"
+file_path = "^/home/user/dev/.*"
+action = "allow"
+reason = "Dev directory reads allowed"
+
+# Allow reading common system files
+[[table.input.rules]]
+tool = "Read"
+file_path = "^/(etc|usr|opt)/.*"
+action = "allow"
+reason = "System file reads allowed"
+
+# Allow writing only inside dev directory
+[[table.input.rules]]
+tool = "Write"
+file_path = "^/home/user/dev/.*"
+action = "allow"
+reason = "Dev directory writes allowed"
+
+# Allow editing inside dev directory
+[[table.input.rules]]
+tool = "Edit"
+file_path = "^/home/user/dev/.*"
+action = "allow"
+reason = "Dev directory edits allowed"
+
+# Allow glob in dev directory
+[[table.input.rules]]
+tool = "Glob"
+file_path = "^/home/user/dev/.*"
+action = "allow"
+reason = "Dev directory glob allowed"
+
+# Allow general-purpose agent tasks
+[[table.input.rules]]
+tool = "Task"
+subagent_type = "^(general-purpose|Explore|Plan)$"
+action = "allow"
+reason = "Standard agent types allowed"
+
+# TOML configs don't support local rules, so passthrough is the right
+# default here — unmatched commands fall through to Claude's built-in
+# permission system.
+[table.shell_scrutiny]
+default = "passthrough"
+
+# Explicitly deny dangerous commands
+[[table.shell_scrutiny.rules]]
+command = "^rm\\b"
+action = "deny"
+reason = "rm is not allowed without explicit approval"
+
+[[table.shell_scrutiny.rules]]
+command = "^(dd|mkfs|fdisk|parted|shred)\\b"
+action = "deny"
+reason = "Disk manipulation commands are not allowed"
+
+[[table.shell_scrutiny.rules]]
+command = "^(sudo|su)\\b"
+action = "deny"
+reason = "Privilege escalation is not allowed"
+
+[[table.shell_scrutiny.rules]]
+command = "^(curl|wget)\\b.*\\|(.*sh|bash|zsh)"
+action = "deny"
+reason = "Piping downloads to shell is not allowed"
+
+# ── Wrapper evaluate rules ──────────────────────────────────────────────────
+# Extract subcommands from wrapper commands and evaluate them through entry table
+
+# sh -c '...' / bash -c '...' — re-parse the -c argument as shell
+[[table.shell_scrutiny.rules]]
+command = "^(sh|bash|zsh)\\b"
+action = "evaluate"
+flag_arg = "-c"
+
+# timeout <duration> <cmd...> — skip the duration, evaluate the command
+[[table.shell_scrutiny.rules]]
+command = "^timeout\\b"
+action = "evaluate"
+positional = 1
+
+# ── Allow common tools ────────────────────────────────────────────────────
+
+[[table.shell_scrutiny.rules]]
+command = "^(git|gh)\\b"
+action = "allow"
+reason = "Version control tools allowed"
+
+[[table.shell_scrutiny.rules]]
+command = "^(mkdir|touch|cp|mv|ln|chmod|chown)\\b"
+action = "allow"
+reason = "Common file operations allowed"
+
+[[table.shell_scrutiny.rules]]
+command = "^(curl|wget|http|httpie)\\b"
+action = "allow"
+reason = "Network fetch tools allowed"

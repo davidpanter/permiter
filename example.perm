@@ -1,0 +1,64 @@
+# permiter DSL config
+
+let safe_cmds = /^(ls|pwd|echo|cat|grep|find|which|whoami|wc|head|tail|sort|uniq|date|uname|df|du|ps|env|printenv|diff|file|stat|true|false|test|\[)\b/
+let dev_dir = /^\/home\/user\/dev\/.*/
+let sys_read = /^\/(etc|usr|opt)\/.*/
+
+audit file "/tmp/permiter-audit.json" level matched
+
+# local_rules = true   # Enable .permiter/ project-local rules
+
+table input default deny {
+    # Safe read-only shell commands
+    Bash command $safe_cmds -> allow "Safe read-only commands"
+
+    # Forward all other Bash commands to shell_scrutiny
+    Bash -> forward shell_scrutiny
+
+    # Allow reading files in the dev directory
+    Read file_path $dev_dir -> allow "Dev directory reads allowed"
+
+    # Allow reading common system files
+    Read file_path $sys_read -> allow "System file reads allowed"
+
+    # Allow writing only inside dev directory
+    Write file_path $dev_dir -> allow "Dev directory writes allowed"
+
+    # Allow editing inside dev directory
+    Edit file_path $dev_dir -> allow "Dev directory edits allowed"
+
+    # Allow glob in dev directory
+    Glob file_path $dev_dir -> allow "Dev directory glob allowed"
+
+    # Allow general-purpose agent tasks
+    Task subagent_type /^(general-purpose|Explore|Plan)$/ -> allow "Standard agent types allowed"
+}
+
+table shell_scrutiny default deny {
+    # Explicitly deny dangerous commands
+    command /^rm\b/ -> deny "rm is not allowed without explicit approval"
+    command /^(dd|mkfs|fdisk|parted|shred)\b/ -> deny "Disk manipulation commands are not allowed"
+    command /^(sudo|su)\b/ -> deny "Privilege escalation is not allowed"
+    command /^(curl|wget)\b.*\|(.*sh|bash|zsh)/ -> deny "Piping downloads to shell is not allowed"
+
+    # Wrapper evaluate rules — extract subcommands and re-evaluate
+    command /^(sh|bash|zsh)\b/ -> evaluate flag -c
+    command /^timeout\b/ -> evaluate skip 1
+
+    # Allow version control
+    command /^(git|gh)\b/ -> allow "Version control tools allowed"
+
+    # Allow common file operations
+    command /^(mkdir|touch|cp|mv|ln|chmod|chown)\b/ -> allow "Common file operations allowed"
+
+    # Allow network fetch tools
+    command /^(curl|wget|http|httpie)\b/ -> allow "Network fetch tools allowed"
+
+    # Catch-all: unmatched commands pass through to Claude's built-in
+    # permission system. Use "force passthrough" here instead if local_rules
+    # is enabled and you want to prevent project-local rules from overriding.
+    -> passthrough "Not matched — defer to Claude"
+
+    # has_file example:
+    #   Bash command /^pip\b/ has_file ".venv/bin/pip" -> allow "pip in venv project"
+}

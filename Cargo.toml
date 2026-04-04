@@ -1,0 +1,33 @@
+[package]
+name = "permiter"
+version = "0.1.0"
+edition = "2021"
+description = "An iptables-inspired PreToolUse hook for Claude Code"
+license = "MIT"
+repository = "https://github.com/davidpanter/permiter"
+
+[[bin]]
+name = "permiter"
+path = "src/main.rs"
+
+[lib]
+name = "permiter"
+path = "src/lib.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+regex = "1"
+log = "0.4"
+env_logger = "0.11"
+chrono = { version = "0.4", features = ["serde"] }
+
+[[bench]]
+name = "eval"
+harness = false
+
+[dev-dependencies]
+pretty_assertions = "1"
