@@ -1,0 +1,27 @@
+# injection-guards.perm
+#
+# Defensive denies that should appear at the TOP of your bash_commands
+# table — order matters because permiter takes the first matching rule.
+#
+# Drop into: table bash_commands { ... }
+
+# Newline embedded in a quoted argument can hide subsequent args from
+# arg/path validation. Example: `cat "safe\n# evil" /etc/shadow` would
+# parse as a single argument containing a newline. Block it outright.
+command /\n/ -> deny "newline in argument — possible injection"
+
+# SSH / SCP / SFTP — outbound shell access is rarely what an agent
+# should be doing unattended.
+command /^(ssh|sftp|scp)\b/ -> deny "SSH/SCP/SFTP not allowed"
+
+# sudo prompts interactively for a password, which deadlocks an
+# agent session. Build a passwordless wrapper for any specific
+# elevated workflow you actually need.
+command /^sudo\b/ -> deny "sudo not allowed — interactive password prompt breaks in Claude Code"
+
+# Disk-level destructive tools — almost never the right answer
+# from an agent.
+command /^(dd|mkfs|fdisk|parted|shred|wipefs)\b/ -> deny "Disk manipulation not allowed"
+
+# Pipe-curl-to-shell pattern — classic supply-chain footgun.
+command /^(curl|wget)\b.*\|\s*(sh|bash|zsh)\b/ -> deny "Piping downloads to shell not allowed"

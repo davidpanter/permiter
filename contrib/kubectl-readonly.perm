@@ -1,0 +1,22 @@
+# kubectl-readonly.perm
+#
+# Allow non-destructive kubectl subcommands; let mutations
+# (create/apply/delete/patch/scale/...) fall through to passthrough.
+#
+# Drop into: top-level (the `let`) + table bash_commands { ... }
+
+let safe_kube = /^kubectl (explain|get|cluster-info|top|describe|logs|attach|exec|cp|auth|debug|events|diff)\b/
+
+# ─── In table bash_commands ───────────────────────────────────────
+
+command $safe_kube -> allow "Non-destructive kubectl"
+
+# Anything else (kubectl delete, apply, patch, scale, edit, …)
+# falls through to passthrough so Claude prompts.
+
+# Notes:
+# - `attach` and `exec` are in the read-only list because they don't
+#   mutate cluster state, but they DO let you run arbitrary commands
+#   inside a pod. Remove them if that's not what you want.
+# - `cp` lets you copy files into a pod. Remove if you only want
+#   inspection-grade access.

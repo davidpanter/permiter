@@ -1,0 +1,22 @@
+# curl-restricted.perm
+#
+# Allow `curl` only to localhost or to read-only GitHub API endpoints.
+# Anything else (arbitrary internet, write methods, etc.) passes
+# through so Claude Code prompts you.
+#
+# Drop into: top-level (the `let`s) + table bash_commands { ... }
+
+let localhost_url     = /https?:\/\/(localhost|127\.0\.0\.1|\[::1\])/
+let curl_write_flags  = /^(-X|--request|--data|-d|-F|--form|-T|--upload-file)$/
+
+# ─── In table bash_commands ───────────────────────────────────────
+
+# Localhost is always fine — your own dev servers.
+command /^curl\b/ arg $localhost_url -> allow "curl to localhost"
+
+# Read-only GitHub API: matches https://api.github.com/... but only
+# if no write-mode flag is present in the args.
+command /^curl\b/ !arg $curl_write_flags arg /^https:\/\/api\.github\.com\// -> allow "curl read-only GitHub API"
+
+# Anything else (curl https://untrusted.example/, POST to api.github.com,
+# etc.) falls through to passthrough.

@@ -1,0 +1,42 @@
+# scripting-venv.perm
+#
+# Allow Python / Node / Bun tooling only when the project clearly
+# IS a Python / Node / Bun project — detected by checking for a
+# venv directory, package.json, or bun lockfile relative to cwd.
+#
+# `has_file` walks up to the git root, so the check works from any
+# subdirectory of the project.
+#
+# Drop into: bash_commands forward rules + a scripting_languages
+# table at top level.
+
+# ─── In table bash_commands ───────────────────────────────────────
+
+# Forward to the dedicated table so the rest of bash_commands stays clean.
+command /^(pip3?|python3?)\b/ -> forward scripting_languages
+command /(^|\/)\.venv\/bin\// -> forward scripting_languages
+command /^(npm|npx|node|tsx|ts-node|bun)\b/ -> forward scripting_languages
+command /^\.\/node_modules\// -> forward scripting_languages
+
+# ─── Paste at top level (sibling of bash_commands) ─────────────────
+
+table scripting_languages default passthrough {
+    # Explicit venv / node_modules paths — the binary itself is scoped.
+    command /(^|\/)\.venv\/bin\// -> allow "venv binary"
+    command /^\.\/node_modules\/\.bin\// -> allow "local node_modules binary"
+
+    # Bare `pip` / `python` only when a project venv exists.
+    command /^pip3?\b/    has_file ".venv/bin/pip"    -> allow "pip (venv exists)"
+    command /^python3?\b/ has_file ".venv/bin/python" -> allow "python (venv exists)"
+
+    # Node / TS only when package.json exists.
+    command /^npm\b/     has_file "package.json" -> allow "npm (has package.json)"
+    command /^npx\b/     has_file "package.json" -> allow "npx (has package.json)"
+    command /^node\b/    has_file "package.json" -> allow "node (has package.json)"
+    command /^tsx?\b/    has_file "package.json" -> allow "tsx (has package.json)"
+    command /^ts-node\b/ has_file "package.json" -> allow "ts-node (has package.json)"
+
+    # Bun only when a bun lockfile / config is present.
+    command /^bun\b/ has_file "bun.lockb"   -> allow "bun (has bun.lockb)"
+    command /^bun\b/ has_file "bunfig.toml" -> allow "bun (has bunfig.toml)"
+}

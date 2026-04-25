@@ -1,0 +1,40 @@
+# shell-wrappers.perm
+#
+# `evaluate` rules unwrap a wrapper command and re-feed the inner
+# command back through the rules engine, so `timeout 5 rm /tmp/x`
+# is evaluated as `rm /tmp/x` against your normal rules.
+#
+# Drop into: table bash_commands { ... }
+#
+# Without these, every wrapped invocation of an otherwise-allowed
+# command falls through to passthrough, which is annoying.
+
+# Shell -c: the inner -c argument is itself a shell command line.
+# permiter parses it and evaluates each sub-command independently.
+command /^(sh|bash|zsh|dash)\b/ -> evaluate flag -c
+
+# Position-based wrappers: skip N positional args, treat the rest
+# as the inner command.
+command /^time\b/      -> evaluate skip 0
+command /^timeout\b/   -> evaluate skip 1
+command /^command\b/   -> evaluate skip 1
+
+# Wrappers that take their own flags before the inner command.
+command /^xargs\b/     -> evaluate skip 0 opts [-I, -n, -P, -s, -d, -L, -a]
+command /^watch\b/     -> evaluate skip 0 opts [-n, -d, -g, -e, -c]
+command /^(nice|ionice)\b/ -> evaluate skip 0 opts [-n]
+command /^stdbuf\b/    -> evaluate skip 0 opts [-i, -o, -e]
+command /^env\b/       -> evaluate skip 0 opts [-i, -u, -C]
+command /^flock\b/     -> evaluate skip 1 opts [-w, -E]
+
+# Shell control flow: `while CMD; do ... done` — evaluate CMD as
+# its own command. Body commands are decomposed separately.
+command /^(while|until|if)\b/ -> evaluate skip 0
+
+# Shell keywords that just join a parsed compound — safe to allow
+# bare since the actual commands inside are evaluated separately.
+command /^(for|do|done|then|else|elif|fi|case|esac)\b/ -> allow "Shell keyword"
+
+# Shell builtins with no security impact on their own.
+command /^(cd|read|test)\b/ -> allow "Shell builtins"
+command /^\[\b/             -> allow "Test bracket"
