@@ -1,0 +1,13 @@
+# systemctl-readonly.perm
+#
+# Allow `systemctl status / show / list-* / cat / is-active / ...` —
+# the inspection subcommands. Anything that mutates unit state
+# (start, stop, restart, enable, disable, reload, daemon-reload,
+# mask, edit) passes through so Claude Code prompts you.
+#
+# Drop into: table bash_commands { ... }
+
+command /^systemctl\b/ arg /^(status|list-units|list-sockets|list-timers|list-jobs|list-machines|list-dependencies|show|show-environment|cat|is-active|is-enabled|is-failed|get-default)$/ -> allow "systemctl read-only"
+
+# Mutations fall through to passthrough.
+command /^systemctl\b/ -> passthrough "systemctl mutation needs review"

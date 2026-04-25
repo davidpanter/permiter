@@ -77,7 +77,7 @@ permiter supports two config formats. The file extension determines the parser:
 - **`.perm`** — a purpose-built DSL (recommended, more concise)
 - **`.toml`** — standard TOML (more verbose, better editor support)
 
-Both formats produce the same internal config. See [`example.perm`](example.perm) and [`example.toml`](example.toml) for equivalent reference configs.
+Both formats produce the same internal config. See [`example.perm`](example.perm) and [`example.toml`](example.toml) for equivalent reference configs, and [`contrib/`](contrib/) for ready-made snippets (kubectl, git, scripting venvs, MCP allowlists, …) you can lift into your own config.
 
 ---
 

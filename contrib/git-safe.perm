@@ -1,0 +1,29 @@
+# git-safe.perm
+#
+# Allow read-only git subcommands; route `git worktree` to a sub-table
+# with finer-grained control; let everything else pass through.
+#
+# Drop into: table bash_commands { ... }
+# Plus: paste the git_worktree table at the top level.
+
+# Read-only and low-risk subcommands. Add/remove to taste — `commit`
+# is included on the assumption that you want the agent to commit
+# its own work; remove if not.
+command /^git\b/ arg /^(ls-files|bisect|blame|branch|commit|tag|pull|fetch|diff|log|grep|show|status|stash)\b/ -> allow "Safe git subcommand"
+
+# `git -C <dir> worktree …` and bare `git worktree …` both routed.
+command /^git(\s+-C\s+\S+)?\s+worktree\b/ -> forward git_worktree
+
+# Anything else (push, reset --hard, rebase -i, ...) falls through
+# to passthrough so Claude Code prompts you.
+
+# ─── Paste at top level (sibling of bash_commands) ─────────────────
+
+table git_worktree default passthrough {
+    command /git(\s+-C\s+\S+)?\s+worktree\s+(add|lock|unlock|repair|list)\b/ -> allow "Safe git worktree subcommand"
+
+    # Unknown worktree subcommand: passthrough so Claude prompts.
+    # Use `force passthrough` instead if you want to prevent local
+    # rules from upgrading these to allow.
+    command /git.*worktree/ -> passthrough "Unrecognised git worktree subcommand"
+}

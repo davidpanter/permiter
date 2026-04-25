@@ -1,0 +1,30 @@
+# mcp-common-allowlist.perm
+#
+# Allow common MCP servers by tool-name prefix. MCP tools are surfaced
+# to Claude Code as `mcp__<server>__<tool>`, so prefix matching covers
+# every tool from a server in one rule.
+#
+# Drop into: table input { ... } (or whichever table fronts your
+# non-Bash routing).
+#
+# Pick and choose — only allow servers you actually trust to act
+# autonomously.
+
+# Browser / page automation
+tool /^mcp__playwright-/        -> allow "playwright MCP"
+tool /^mcp__devtools__/         -> allow "Chrome devtools MCP"
+tool /^mcp__web-inspector__/    -> allow "web-inspector MCP"
+
+# Reasoning / docs
+tool /^mcp__sequential-thinking__/ -> allow "sequential-thinking MCP"
+tool /^mcp__systems-thinking__/    -> allow "systems-thinking MCP"
+tool /^mcp__context7__/            -> allow "context7 docs MCP"
+
+# GitHub MCP — split read-only vs write so writes get a prompt.
+tool /^mcp__github__(get_|list_|search_)/ -> allow "GitHub MCP read-only"
+tool /^mcp__github__/                     -> passthrough "GitHub MCP write needs review"
+
+# Notes / data — adjust if your servers have different names.
+tool /^mcp__claude-notes__/ -> allow "claude-notes MCP"
+tool /^mcp__clickup__/      -> allow "ClickUp MCP"
+tool /^mcp__neo4j__/        -> allow "Neo4j MCP"
