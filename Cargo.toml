@@ -1,6 +1,6 @@
 [package]
 name = "permiter"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "An iptables-inspired PreToolUse hook for Claude Code"
 license = "MIT"
