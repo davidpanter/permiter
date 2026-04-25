@@ -209,9 +209,19 @@ impl Parser {
                     self.advance();
                     if self.peek() == Some('<') {
                         self.advance();
-                        // heredoc: capture delimiter but don't treat body as commands
+                        // heredoc: for shells, parse the body as commands (closing security gap
+                        // where `bash << 'EOF'\nrm -rf /\nEOF` was silently skipped).
+                        // For non-shell programs (python3, etc.) just skip — the caller's
+                        // normal rules cover the command itself and we don't process the body.
                         let delim = self.read_word();
-                        self.skip_heredoc(&delim);
+                        if is_shell_program(&words) {
+                            let body = self.extract_heredoc_body(&delim);
+                            let sub_cwd = self.cwd.clone();
+                            let sub_cmds = parse_commands(&body, &sub_cwd);
+                            self.commands.extend(sub_cmds);
+                        } else {
+                            self.skip_heredoc(&delim);
+                        }
                         break;
                     } else if self.peek() == Some('&') {
                         // <&N — fd-to-fd input redirect; consume and ignore
@@ -520,6 +530,42 @@ impl Parser {
             }
         }
     }
+
+    /// Extract and return the heredoc body as a string (rather than discarding it).
+    /// Used for shell programs so the body can be re-parsed as commands.
+    fn extract_heredoc_body(&mut self, delimiter: &str) -> String {
+        let delimiter = delimiter.trim_matches(|c: char| c == '\'' || c == '"');
+        let mut body = String::new();
+        loop {
+            let mut line = String::new();
+            loop {
+                match self.advance() {
+                    None => return body,
+                    Some('\n') => break,
+                    Some(c) => line.push(c),
+                }
+            }
+            if line.trim() == delimiter {
+                return body;
+            }
+            body.push_str(&line);
+            body.push('\n');
+        }
+    }
+}
+
+/// Returns true if the first non-assignment word in `words` is a shell interpreter.
+/// Used to decide whether a heredoc body should be parsed as commands.
+fn is_shell_program(words: &[String]) -> bool {
+    let program = words
+        .iter()
+        .find(|w| {
+            let before_eq = w.split('=').next().unwrap_or("");
+            !(w.contains('=') && before_eq.chars().all(|c| c.is_alphanumeric() || c == '_'))
+        })
+        .map(|s| s.as_str())
+        .unwrap_or("");
+    matches!(program, "sh" | "bash" | "zsh" | "dash")
 }
 
 /// Resolve a path relative to cwd. Handles ~, ., ..
